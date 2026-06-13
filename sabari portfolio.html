@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sabari M — PCB Designer </title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+<style>
+:root{
+  --bg:#040d08; --bg-panel:#0a1a11; --bg-panel-2:#0e2417;
+  --grid-line:rgba(120,255,170,0.05); --border:rgba(120,255,170,0.12);
+  --signal:#46f0a0; --signal-soft:rgba(70,240,160,0.15);
+  --power:#8aff5e; --power-soft:rgba(138,255,94,0.15);
+  --copper:#ff9456; --copper-soft:rgba(255,148,86,0.15);
+  --blue:#5bffd6; --blue-soft:rgba(91,255,214,0.15);
+  --text:#eafff2; --muted:#7ea38d; --muted-2:#4f6b59; --radius:10px;
+}
+[data-theme="light"]{
+  --bg:#f3f9f5; --bg-panel:#ffffff; --bg-panel-2:#eaf6ee;
+  --grid-line:rgba(20,110,60,0.06); --border:rgba(20,110,60,0.15);
+  --signal:#128303; --signal-soft:rgba(4, 121, 10, 0.647);
+  --power:#2e7d32; --power-soft:rgba(46,125,50,0.12);
+  --copper:#d9712b; --copper-soft:rgba(217,113,43,0.12);
+  --blue:#0f8a7a; --blue-soft:rgba(15,138,122,0.12);
+  --text:#0b2417; --muted:#436354; --muted-2:#8aa698;
+}
+*{box-sizing:border-box; border-color:var(--border);}
+html{scroll-behavior:smooth;}
+body{margin:0; background:var(--bg); color:var(--text); font-family:"Inter",system-ui,sans-serif; -webkit-font-smoothing:antialiased; transition:background .3s, color .3s;}
+.font-display{font-family:"Space Grotesk",system-ui,sans-serif;}
+.font-mono{font-family:"JetBrains Mono",ui-monospace,monospace;}
+.scope-grid{background-image:linear-gradient(var(--grid-line) 1px,transparent 1px),linear-gradient(90deg,var(--grid-line) 1px,transparent 1px); background-size:40px 40px;}
+.designator{font-family:"JetBrains Mono",monospace; font-size:.75rem; letter-spacing:.2em; color:var(--signal); text-transform:uppercase;}
+::-webkit-scrollbar{width:8px;}
+::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:var(--bg-panel-2); border-radius:4px;}
+::-webkit-scrollbar-thumb:hover{background:var(--muted-2);}
+::selection{background:var(--signal-soft); color:var(--signal);}
+a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible{outline:2px solid var(--signal); outline-offset:2px; border-radius:4px;}
+.panel{background:linear-gradient(180deg,var(--bg-panel) 0%, var(--bg-panel-2) 100%); border:1px solid var(--border); border-radius:var(--radius); transition:transform .25s, border-color .25s, box-shadow .25s;}
+.text-glow-cyan{text-shadow:0 0 12px var(--signal-soft), 0 0 2px var(--signal-soft);}
+.trace-line{stroke-dasharray:6 10; animation:trace-flow 1.6s linear infinite;}
+@keyframes trace-flow{to{stroke-dashoffset:-16;}}
+@keyframes led-pulse{0%,100%{opacity:.35; filter:drop-shadow(0 0 1px currentColor);} 50%{opacity:1; filter:drop-shadow(0 0 6px currentColor);}}
+.led-pulse{animation:led-pulse 2.4s ease-in-out infinite;}
+@keyframes scan{0%{left:0%;} 100%{left:100%;}}
+.scanline{animation:scan 9s linear infinite;}
+@keyframes spin-slow{to{transform:rotate(360deg);}}
+@keyframes spin-rev{to{transform:rotate(-360deg);}}
+.spin-slow{animation:spin-slow 40s linear infinite;}
+.spin-rev{animation:spin-rev 55s linear infinite;}
+@keyframes bob{0%,100%{transform:translateY(0);} 50%{transform:translateY(8px);}}
+.bob{animation:bob 2s ease-in-out infinite;}
+.fade-up{opacity:0; transform:translateY(24px); transition:opacity .6s ease, transform .6s ease;}
+.fade-up.in{opacity:1; transform:translateY(0);}
+.fade-left{opacity:0; transform:translateX(-24px); transition:opacity .6s ease, transform .6s ease;}
+.fade-left.in{opacity:1; transform:translateX(0);}
+.fade-right{opacity:0; transform:translateX(24px); transition:opacity .6s ease, transform .6s ease;}
+.fade-right.in{opacity:1; transform:translateX(0);}
+.panel:hover{transform:translateY(-4px); border-color:var(--signal);}
+.panel.no-hover:hover{transform:none; border-color:var(--border);}
+.skill-chip:hover{border-color:var(--accent); color:var(--accent); box-shadow:0 0 14px var(--accent-soft); transform:scale(1.06);}
+.skill-chip{transition:all .2s;}
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; scroll-behavior:auto !important;}
+}
+.container{max-width:72rem; margin:0 auto; padding:0 1.25rem;}
+@media(min-width:768px){.container{padding:0 2rem;}}
+.btn{display:inline-flex; align-items:center; gap:.5rem; border-radius:.375rem; padding:.75rem 1.25rem; font-family:"JetBrains Mono",monospace; font-size:.75rem; font-weight:600; text-transform:uppercase; letter-spacing:.15em; transition:all .2s; text-decoration:none; cursor:pointer; border:1px solid transparent;}
+.btn-primary{background:var(--signal); color:#04201d;}
+.btn-primary:hover{box-shadow:0 0 24px var(--signal-soft);}
+.btn-outline{border-color:var(--border); color:var(--text); background:transparent;}
+.btn-outline:hover{border-color:var(--signal); color:var(--signal); box-shadow:0 0 20px var(--signal-soft);}
+.btn-outline.green:hover{border-color:var(--power); color:var(--power); box-shadow:0 0 20px var(--power-soft);}
+input,textarea{background:var(--bg); border:1px solid var(--border); border-radius:.375rem; padding:.75rem 1rem; font-size:.875rem; color:var(--text); outline:none; width:100%; font-family:inherit; transition:border-color .2s;}
+input:focus,textarea:focus{border-color:var(--signal);}
+[data-icon]{display:inline-block;}
+</style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<header id="navbar" class="fixed inset-x-0 top-0 z-40 border-b border-transparent" style="transition:all .3s; backdrop-filter:none;">
+  <nav class="container" style="display:flex; align-items:center; justify-content:space-between; padding:1rem 1.25rem;">
+    <a href="#home" style="display:flex; align-items:center; gap:.65rem; text-decoration:none;">
+      <span style="position:relative; display:flex; height:2.25rem; width:2.25rem; align-items:center; justify-content:center; border-radius:.375rem; border:1px solid rgba(70,240,224,.4); background:var(--bg-panel); font-family:'JetBrains Mono',monospace; font-size:.7rem; color:var(--signal);">
+        SM
+        <span style="position:absolute; right:-4px; top:-4px; height:6px; width:6px; border-radius:50%; background:var(--power);" class="led-pulse"></span>
+      </span>
+      <span class="font-display" style="font-size:.875rem; font-weight:600; letter-spacing:.02em; color:var(--text);">Sabari M</span>
+    </a>
+
+    <ul id="desktop-nav" class="font-mono" style="display:none; align-items:center; gap:2rem; font-size:.75rem; text-transform:uppercase; letter-spacing:.2em; color:var(--muted); list-style:none; margin:0; padding:0;">
+      <li><a href="#about" class="nav-link" style="text-decoration:none; color:inherit; transition:color .2s;">About</a></li>
+      <li><a href="#skills" class="nav-link" style="text-decoration:none; color:inherit; transition:color .2s;">Skills</a></li>
+      <li><a href="#experience" class="nav-link" style="text-decoration:none; color:inherit; transition:color .2s;">Experience</a></li>
+      <li><a href="#projects" class="nav-link" style="text-decoration:none; color:inherit; transition:color .2s;">Projects</a></li>
+      <li><a href="#certifications" class="nav-link" style="text-decoration:none; color:inherit; transition:color .2s;">Certifications</a></li>
+      <li><a href="#contact" class="nav-link" style="text-decoration:none; color:inherit; transition:color .2s;">Contact</a></li>
+    </ul>
+
+    <div id="desktop-resume" style="display:none;">
+      <a href="resume.pdf" download class="btn btn-outline">
+        <i data-lucide="download" style="height:.875rem; width:.875rem;"></i> Resume
+      </a>
+    </div>
+
+    <button id="mobile-toggle" aria-label="Toggle navigation menu" style="display:flex; height:2.5rem; width:2.5rem; align-items:center; justify-content:center; border-radius:.375rem; border:1px solid var(--border); background:transparent; color:var(--text); cursor:pointer;">
+      <i data-lucide="menu" style="height:1.25rem; width:1.25rem;"></i>
+    </button>
+    <button id="theme-toggle" aria-label="Toggle light/dark theme" style="display:flex; height:2.5rem; width:2.5rem; align-items:center; justify-content:center; border-radius:.375rem; border:1px solid var(--border); background:transparent; color:var(--text); cursor:pointer; margin-left:.5rem;">
+      <i data-lucide="moon" style="height:1.15rem; width:1.15rem;"></i>
+    </button>
+  </nav>
+
+  <div id="mobile-menu" style="display:none; overflow:hidden; border-bottom:1px solid var(--border); background:rgba(6,10,15,.95); backdrop-filter:blur(12px);">
+    <ul class="font-mono" style="display:flex; flex-direction:column; gap:.25rem; padding:1rem 1.25rem; font-size:.875rem; text-transform:uppercase; letter-spacing:.2em; color:var(--muted); list-style:none; margin:0;">
+      <li><a href="#about" class="mobile-link" style="display:block; border-radius:.375rem; padding:.75rem; text-decoration:none; color:inherit;">About</a></li>
+      <li><a href="#skills" class="mobile-link" style="display:block; border-radius:.375rem; padding:.75rem; text-decoration:none; color:inherit;">Skills</a></li>
+      <li><a href="#experience" class="mobile-link" style="display:block; border-radius:.375rem; padding:.75rem; text-decoration:none; color:inherit;">Internship-Experience</a></li>
+      <li><a href="#projects" class="mobile-link" style="display:block; border-radius:.375rem; padding:.75rem; text-decoration:none; color:inherit;">Projects</a></li>
+      <li><a href="#certifications" class="mobile-link" style="display:block; border-radius:.375rem; padding:.75rem; text-decoration:none; color:inherit;">Certifications</a></li>
+      <li><a href="#contact" class="mobile-link" style="display:block; border-radius:.375rem; padding:.75rem; text-decoration:none; color:inherit;">Contact</a></li>
+      <li style="padding-top:.5rem;">
+        <a href="resume.pdf" download style="display:flex; align-items:center; gap:.5rem; border-radius:.375rem; border:1px solid var(--border); padding:.75rem; color:var(--signal); text-decoration:none;">
+          <i data-lucide="download" style="height:1rem; width:1rem;"></i> Download Resume
+        </a>
+      </li>
+    </ul>
+  </div>
+</header>
+
+<!-- HERO -->
+<section id="home" class="scope-grid" style="position:relative; display:flex; min-height:100vh; align-items:center; overflow:hidden; padding-top:6rem;">
+  <div id="pcb-hero" style="position:absolute; inset:0;"></div>
+  <div aria-hidden style="pointer-events:none; position:absolute; inset:0; overflow:hidden;">
+    <div class="scanline" style="position:absolute; top:0; bottom:0; width:1px; background:linear-gradient(to bottom, transparent, rgba(70,240,224,.4), transparent);"></div>
+  </div>
+
+  <div class="container" style="position:relative; z-index:10; display:grid; gap:3rem; padding:4rem 1.25rem; align-items:center;">
+    <div style="order:2;">
+      <div class="designator fade-up" style="margin-bottom:1rem; display:flex; align-items:center; gap:.5rem;">
+        <span class="led-pulse" style="height:6px; width:6px; border-radius:50%; background:var(--power);"></span>
+        Turning Concepts into Functional one
+      </div>
+      <h1 class="font-display fade-up" style="font-size:2.5rem; font-weight:700; line-height:1.1; color:var(--text); transition-delay:.05s;">Sabari M</h1>
+      <div class="font-mono fade-up" style="margin-top:1rem; display:flex; height:2rem; align-items:center; font-size:1.125rem; color:var(--signal); transition-delay:.1s;">
+        <span style="margin-right:.5rem; color:var(--muted);">&lt;</span>
+        <span id="typewriter"></span><span id="cursor" style="display:inline-block; width:8px; background:var(--signal); margin-left:2px;">&nbsp;</span>
+        <span style="margin-left:.5rem; color:var(--muted);">/&gt;</span>
+      </div>
+      <p class="fade-up" style="margin-top:1.5rem; max-width:36rem; font-size:1rem; line-height:1.7; color:var(--muted); transition-delay:.15s;">
+        Electronics & Communication Engineering student and exploring PCB designing, analog circuit designing, and turning schematics into working boards.
+      </p>
+      <div class="fade-up" style="margin-top:2rem; display:flex; flex-wrap:wrap; gap:.75rem; transition-delay:.2s;">
+        <a href="resume.pdf" download class="btn btn-primary"><i data-lucide="download" style="height:1rem; width:1rem;"></i> Download Resume</a>
+        <a href="#projects" class="btn btn-outline"><i data-lucide="folder-git-2" style="height:1rem; width:1rem;"></i> View Projects</a>
+        <a href="#contact" class="btn btn-outline green"><i data-lucide="mail" style="height:1rem; width:1rem;"></i> Contact Me</a>
+      </div>
+    </div>
+
+    <div style="order:1; margin:0 auto;">
+      <div style="position:relative; margin:0 auto; height:18rem; width:18rem;">
+        <div class="spin-slow" aria-hidden style="position:absolute; inset:0; border-radius:50%; border:1px dashed rgba(70,240,224,.3);"></div>
+        <div class="spin-rev" aria-hidden style="position:absolute; inset:-1rem; border-radius:50%; border:1px solid rgba(91,140,255,.15);"></div>
+        <span class="led-pulse" style="position:absolute; top:.5rem; left:.5rem; height:10px; width:10px; border-radius:50%; background:var(--power);"></span>
+        <span class="led-pulse" style="position:absolute; top:.5rem; right:.5rem; height:10px; width:10px; border-radius:50%; background:var(--power);"></span>
+        <span class="led-pulse" style="position:absolute; bottom:.5rem; left:.5rem; height:10px; width:10px; border-radius:50%; background:var(--power);"></span>
+        <span class="led-pulse" style="position:absolute; bottom:.5rem; right:.5rem; height:10px; width:10px; border-radius:50%; background:var(--power);"></span>
+        <div style="position:absolute; inset:.75rem; overflow:hidden; border-radius:50%; border:2px solid rgba(70,240,224,.3); background:var(--bg-panel); box-shadow:0 0 60px var(--signal-soft); display:flex; align-items:center; justify-content:center;">
+          <img src="photo.jpeg" alt="Sabari M" style="width:100%; height:100%; object-fit:cover;" />
+        </div>
+        <div class="designator" style="position:absolute; bottom:-.75rem; left:50%; transform:translateX(-50%); white-space:nowrap; border-radius:9999px; border:1px solid var(--border); background:var(--bg-panel); padding:.4rem 1rem;">SABARI M</div>
+      </div>
+    </div>
+  </div>
+
+  <a href="#about" aria-label="Scroll to about section" class="bob" style="position:absolute; bottom:2rem; left:50%; transform:translateX(-50%); z-index:10; color:var(--muted); text-decoration:none;">
+    <i data-lucide="arrow-down" style="height:1.25rem; width:1.25rem;"></i>
+  </a>
+</section>
+
+<!-- ABOUT -->
+<section id="about" style="position:relative; overflow:hidden; padding:3.5rem 0;">
+  <div id="pcb-about" style="position:absolute; inset:0; opacity:.6;"></div>
+  <div class="container" style="position:relative;">
+    <div class="fade-up" style="max-width:48rem;">
+      <div class="designator" style="margin-bottom:.75rem;"> · ABOUT</div>
+      <h2 class="font-display" style="font-size:2rem; font-weight:700; color:var(--text);">
+        Designing at the intersection of <span style="color:var(--signal);" class="text-glow-cyan">PCB layout</span> and <span style="color:var(--power);" class="text-glow-cyan">Analog circuits</span>
+      </h2>
+      <p style="margin-top:1.25rem; font-size:1rem; line-height:1.7; color:var(--muted);">
+        Electronics and Communication Engineering student with hands-on experience in PCB design. Exploring Analog circuit design. Proficient in Altium Designer, with a strong focus on schematic capture,and layout.
+      </p>
+    </div>
+
+    <div class="fade-up" style="margin-top:3rem; display:grid; grid-template-columns:repeat(2,1fr); gap:1rem;">
+      <div class="panel" style="position:relative; padding:1.25rem;">
+        <span class="designator" style="position:absolute; right:.75rem; top:.75rem; font-size:10px; opacity:.6;"></span>
+        <div class="font-display text-glow-cyan" style="font-size:1.875rem; font-weight:700; color:var(--signal);">3+</div>
+        <div style="margin-top:.25rem; font-size:.75rem; text-transform:uppercase; letter-spacing:.2em; color:var(--muted);">PCB Projects</div>
+      </div>
+      <div class="panel" style="position:relative; padding:1.25rem;">
+        <span class="designator" style="position:absolute; right:.75rem; top:.75rem; font-size:10px; opacity:.6;"></span>
+        <div class="font-display text-glow-cyan" style="font-size:1.875rem; font-weight:700; color:var(--signal);">7</div>
+        <div style="margin-top:.25rem; font-size:.75rem; text-transform:uppercase; letter-spacing:.2em; color:var(--muted);">Certifications</div>
+      </div>
+      <div class="panel" style="position:relative; padding:1.25rem;">
+        <span class="designator" style="position:absolute; right:.75rem; top:.75rem; font-size:10px; opacity:.6;"></span>
+        <div class="font-display text-glow-cyan" style="font-size:1.875rem; font-weight:700; color:var(--signal);">2</div>
+        <div style="margin-top:.25rem; font-size:.75rem; text-transform:uppercase; letter-spacing:.2em; color:var(--muted);">Embedded Projects</div>
+      </div>
+      <div class="panel" style="position:relative; padding:1.25rem;">
+        <span class="designator" style="position:absolute; right:.75rem; top:.75rem; font-size:10px; opacity:.6;"></span>
+        <div class="font-display text-glow-cyan" style="font-size:1.875rem; font-weight:700; color:var(--signal);">2</div>
+        <div style="margin-top:.25rem; font-size:.75rem; text-transform:uppercase; letter-spacing:.2em; color:var(--muted);">Internships</div>
+      </div>
+    </div>
+
+    <div style="margin-top:3rem;">
+      <div class="designator fade-up" style="margin-bottom:2rem;">· EDUCATION</div>
+      <div style="position:relative; border-left:1px solid var(--border); padding-left:2rem;">
+
+        <div class="fade-left" style="position:relative; margin-bottom:2.5rem;">
+          <span style="position:absolute; left:-2.5rem; display:flex; height:2rem; width:2rem; align-items:center; justify-content:center; border-radius:50%; border:1px solid rgba(70,240,224,.4); background:var(--bg-panel); color:var(--signal);"><i data-lucide="graduation-cap" style="height:1rem; width:1rem;"></i></span>
+          <div class="panel no-hover" style="padding:1.25rem;">
+            <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:.5rem;">
+              <h3 class="font-display" style="font-size:1rem; font-weight:600; color:var(--text); margin:0;">B.E. Electronics & Communication Engineering</h3>
+              <span class="font-mono" style="font-size:.75rem; color:var(--signal);">2023 – 2027</span>
+            </div>
+            <p style="margin:.25rem 0 0; font-size:.875rem; color:var(--muted);">Rajalakshmi Institute of Technology, Chennai</p>
+          </div>
+        </div>
+
+        <div class="fade-left" style="position:relative; margin-bottom:2.5rem;">
+          <span style="position:absolute; left:-2.5rem; display:flex; height:2rem; width:2rem; align-items:center; justify-content:center; border-radius:50%; border:1px solid rgba(70,240,224,.4); background:var(--bg-panel); color:var(--signal);"><i data-lucide="graduation-cap" style="height:1rem; width:1rem;"></i></span>
+          <div class="panel no-hover" style="padding:1.25rem;">
+            <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:.5rem;">
+              <h3 class="font-display" style="font-size:1rem; font-weight:600; color:var(--text); margin:0;">Higher Secondary (VI – XII)</h3>
+              <span class="font-mono" style="font-size:.75rem; color:var(--signal);">2016 – 2023</span>
+            </div>
+            <p style="margin:.25rem 0 0; font-size:.875rem; color:var(--muted);">Sir C. P. Memorial Govt. Higher Secondary School, Kanyakumari</p>
+            <p class="font-mono" style="margin-top:.5rem; font-size:.75rem; color:var(--power);">HSC — 89%</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SKILLS -->
+<section id="skills" style="position:relative; overflow:hidden; padding:3.5rem 0;">
+  <div id="pcb-skills" style="position:absolute; inset:0; opacity:.4;"></div>
+  <div class="container" style="position:relative;">
+    <div class="fade-up" style="max-width:42rem;">
+      <div class="designator" style="margin-bottom:.75rem;">· SKILLS</div>
+      <h2 class="font-display" style="font-size:2rem; font-weight:700; color:var(--text);">The toolbox behind the boards</h2>
+      <p style="margin-top:1rem; font-size:1rem; color:var(--muted);">From schematic capture to fabrication-ready Gerbers, I transform ideas into reliable, manufacturable PCB designs.</p>
+    </div>
+
+    <div style="margin-top:3rem; display:grid; gap:1.5rem; grid-template-columns:1fr;" id="skills-grid"></div>
+  </div>
+</section>
+
+<!-- EXPERIENCE -->
+<section id="experience" style="position:relative; overflow:hidden; padding:3.5rem 0;">
+  <div id="pcb-experience" style="position:absolute; inset:0; opacity:.5;"></div>
+  <div class="container" style="position:relative;">
+    <div class="fade-up" style="max-width:42rem;">
+      <div class="designator" style="margin-bottom:.75rem;"> · INTERNSHIP-EXPERIENCE</div>
+      <h2 class="font-display" style="font-size:2rem; font-weight:700; color:var(--text);">On the bench, in the field</h2>
+    </div>
+
+    <div style="margin-top:3rem; display:grid; gap:1.5rem; grid-template-columns:1fr;" id="experience-grid"></div>
+  </div>
+</section>
+
+<!-- PROJECTS -->
+<section id="projects" style="position:relative; overflow:hidden; padding:3.5rem 0;">
+  <div id="pcb-projects" style="position:absolute; inset:0; opacity:.4;"></div>
+  <div class="container" style="position:relative;">
+    <div class="fade-up" style="max-width:42rem;">
+      <div class="designator" style="margin-bottom:.75rem;"> · PROJECTS</div>
+      <h2 class="font-display" style="font-size:2rem; font-weight:700; color:var(--text);">Boards I've designed & built</h2>
+    </div>
+
+    <div style="margin-top:3rem; display:grid; gap:1.5rem; grid-template-columns:1fr;" id="projects-grid"></div>
+  </div>
+</section>
+
+<!-- CERTIFICATIONS -->
+<section id="certifications" style="position:relative; overflow:hidden; padding:3.5rem 0;">
+  <div id="pcb-certs" style="position:absolute; inset:0; opacity:.5;"></div>
+  <div class="container" style="position:relative;">
+    <div class="fade-up" style="max-width:42rem;">
+      <div class="designator" style="margin-bottom:.75rem;"> · CERTIFICATIONS</div>
+      <h2 class="font-display" style="font-size:2rem; font-weight:700; color:var(--text);">Verified knowledge, on record</h2>
+    </div>
+
+    <div style="margin-top:3rem; display:grid; gap:1.25rem; grid-template-columns:repeat(auto-fit,minmax(220px,1fr));" id="certs-grid"></div>
+  </div>
+</section>
+
+<!-- CONTACT -->
+<section id="contact" style="position:relative; overflow:hidden; padding:3.5rem 0;">
+  <div id="pcb-contact" style="position:absolute; inset:0; opacity:.5;"></div>
+  <div class="container" style="position:relative;">
+    <div class="fade-up" style="max-width:42rem;">
+      <div class="designator" style="margin-bottom:.75rem;"> · CONTACT</div>
+      <h2 class="font-display" style="font-size:2rem; font-weight:700; color:var(--text);">Let's build something</h2>
+      <p style="margin-top:1rem; font-size:1rem; color:var(--muted);">Open to Full time, internships, collaborations and interesting hardware problems. Drop a message — I usually reply within a day.</p>
+    </div>
+
+    <div style="margin-top:3rem; display:grid; gap:2rem; grid-template-columns:1fr;">
+      <div class="fade-left" style="display:flex; flex-direction:column; gap:1rem;">
+        <a href="mailto:sabari.m.s.mani@gmail.com" class="panel" style="display:flex; align-items:center; gap:1rem; padding:1rem; text-decoration:none; color:inherit;">
+          <span style="display:flex; height:2.75rem; width:2.75rem; align-items:center; justify-content:center; border-radius:.375rem; border:1px solid var(--border); color:var(--signal);"><i data-lucide="mail" style="height:1.25rem; width:1.25rem;"></i></span>
+          <div>
+            <div class="font-mono" style="font-size:.75rem; text-transform:uppercase; letter-spacing:.2em; color:var(--muted);">Email</div>
+            <div style="font-size:.875rem; color:var(--text);">sabari.m.s.mani@gmail.com</div>
+          </div>
+        </a>
+        <a href="https://github.com/Sabari-M-BE-ECE" target="_blank" rel="noopener noreferrer" class="panel" style="display:flex; align-items:center; gap:1rem; padding:1rem; text-decoration:none; color:inherit;">
+          <span style="display:flex; height:2.75rem; width:2.75rem; align-items:center; justify-content:center; border-radius:.375rem; border:1px solid var(--border); color:var(--signal);"><svg viewBox="0 0 24 24" fill="currentColor" style="height:1.25rem;width:1.25rem;"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg></span>
+          <div>
+            <div class="font-mono" style="font-size:.75rem; text-transform:uppercase; letter-spacing:.2em; color:var(--muted);">GitHub</div>
+            <div style="font-size:.875rem; color:var(--text);">View profile →</div>
+          </div>
+        </a>
+        <a href="https://www.linkedin.com/in/sabarims/" target="_blank" rel="noopener noreferrer" class="panel" style="display:flex; align-items:center; gap:1rem; padding:1rem; text-decoration:none; color:inherit;">
+          <span style="display:flex; height:2.75rem; width:2.75rem; align-items:center; justify-content:center; border-radius:.375rem; border:1px solid var(--border); color:var(--signal);"><svg viewBox="0 0 24 24" fill="currentColor" style="height:1.25rem;width:1.25rem;"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg></span>
+          <div>
+            <div class="font-mono" style="font-size:.75rem; text-transform:uppercase; letter-spacing:.2em; color:var(--muted);">LinkedIn</div>
+            <div style="font-size:.875rem; color:var(--text);">View profile →</div>
+          </div>
+        </a>
+        <a href="resume.pdf" download class="panel" style="display:flex; align-items:center; gap:1rem; padding:1rem; text-decoration:none; color:inherit;">
+          <span style="display:flex; height:2.75rem; width:2.75rem; align-items:center; justify-content:center; border-radius:.375rem; border:1px solid var(--border); color:var(--power);"><i data-lucide="download" style="height:1.25rem; width:1.25rem;"></i></span>
+          <div>
+            <div class="font-mono" style="font-size:.75rem; text-transform:uppercase; letter-spacing:.2em; color:var(--muted);">Resume</div>
+            <div style="font-size:.875rem; color:var(--text);">Download PDF</div>
+          </div>
+        </a>
+      </div>
+
+      <form id="contact-form" class="panel no-hover" style="padding:1.5rem;" novalidate>
+        <div style="display:grid; gap:1.25rem; grid-template-columns:1fr;">
+          <div>
+            <label class="font-mono" style="margin-bottom:.5rem; display:block; font-size:.75rem; text-transform:uppercase; letter-spacing:.2em; color:var(--muted);">Name</label>
+            <input type="text" id="f-name" placeholder="Your name" />
+            <p id="err-name" style="margin-top:.4rem; font-size:.75rem; color:var(--copper); display:none;"></p>
+          </div>
+          <div>
+            <label class="font-mono" style="margin-bottom:.5rem; display:block; font-size:.75rem; text-transform:uppercase; letter-spacing:.2em; color:var(--muted);">Email</label>
+            <input type="email" id="f-email" placeholder="you@example.com" />
+            <p id="err-email" style="margin-top:.4rem; font-size:.75rem; color:var(--copper); display:none;"></p>
+          </div>
+          <div>
+            <label class="font-mono" style="margin-bottom:.5rem; display:block; font-size:.75rem; text-transform:uppercase; letter-spacing:.2em; color:var(--muted);">Message</label>
+            <textarea rows="5" id="f-message" placeholder="Tell me about your project, role, or idea..." style="resize:none;"></textarea>
+            <p id="err-message" style="margin-top:.4rem; font-size:.75rem; color:var(--copper); display:none;"></p>
+          </div>
+        </div>
+        <button type="submit" id="submit-btn" class="btn btn-primary" style="margin-top:1.5rem; width:100%; justify-content:center;">
+          <i data-lucide="send" style="height:1rem; width:1rem;"></i> <span id="submit-label">Send Message</span>
+        </button>
+      </form>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer style="position:relative; overflow:hidden; border-top:1px solid var(--border);">
+  <div aria-hidden style="pointer-events:none; position:absolute; inset:0;">
+    <svg viewBox="0 0 1440 120" preserveAspectRatio="none" style="height:100%; width:100%; opacity:.3;">
+      <path d="M0,30 H200 L240,60 H520 L560,30 H900 L940,90 H1200 L1240,30 H1440" fill="none" stroke="var(--signal)" stroke-width="1.5" class="trace-line"/>
+      <path d="M0,90 H300 L340,50 H700 L740,90 H1100 L1140,50 H1440" fill="none" stroke="var(--blue)" stroke-width="1" opacity="0.5" class="trace-line"/>
+    </svg>
+  </div>
+  <div class="container" style="position:relative; padding:3rem 1.25rem;">
+    <div style="display:flex; flex-direction:column; align-items:center; gap:1.5rem; text-align:center;">
+      <div>
+        <div class="font-display" style="font-size:1.125rem; font-weight:600; color:var(--text);">Sabari M</div>
+        <p class="font-mono" style="margin-top:.25rem; font-size:.75rem; color:var(--muted);">Designed with passion for Electronics and PCB Engineering.</p>
+        <p class="font-mono" style="margin-top:.25rem; font-size:.75rem; color:var(--muted);">Every Trace Tells a Story of Precision.</p>
+      </div>
+      <div class="font-mono" style="display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:1.5rem .75rem; font-size:.75rem; text-transform:uppercase; letter-spacing:.2em; color:var(--muted);">
+        <a href="#about" style="text-decoration:none; color:inherit;">About</a>
+        <a href="#skills" style="text-decoration:none; color:inherit;">Skills</a>
+        <a href="#experience" style="text-decoration:none; color:inherit;">Internship-Experience</a>
+        <a href="#projects" style="text-decoration:none; color:inherit;">Projects</a>
+        <a href="#certifications" style="text-decoration:none; color:inherit;">Certifications</a>
+        <a href="#contact" style="text-decoration:none; color:inherit;">Contact</a>
+      </div>
+      <div style="display:flex; align-items:center; gap:.75rem;">
+        <a href="mailto:sabari.m.s.mani@gmail.com" aria-label="Email" style="display:flex; height:2.5rem; width:2.5rem; align-items:center; justify-content:center; border-radius:.375rem; border:1px solid var(--border); color:var(--text); text-decoration:none;"><i data-lucide="mail" style="height:1rem; width:1rem;"></i></a>
+        <a href="https://github.com/Sabari-M-BE-ECE" target="_blank" rel="noopener noreferrer" aria-label="GitHub" style="display:flex; height:2.5rem; width:2.5rem; align-items:center; justify-content:center; border-radius:.375rem; border:1px solid var(--border); color:var(--text); text-decoration:none;"><svg viewBox="0 0 24 24" fill="currentColor" style="height:1rem;width:1rem;"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg></a>
+        <a href="https://www.linkedin.com/in/sabarims/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn" style="display:flex; height:2.5rem; width:2.5rem; align-items:center; justify-content:center; border-radius:.375rem; border:1px solid var(--border); color:var(--text); text-decoration:none;"><svg viewBox="0 0 24 24" fill="currentColor" style="height:1rem;width:1rem;"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg></a>
+      </div>
+    </div>
+    <div class="font-mono" style="margin-top:2rem; border-top:1px solid var(--border); padding-top:1.5rem; text-align:center; font-size:11px; color:var(--muted-2);">
+      © <span id="year"></span> Sabari M. All rights reserved.
+    </div>
+  </div>
+</footer>
+
+<!-- PROJECT MODAL -->
+<div id="project-modal" style="display:none; position:fixed; inset:0; z-index:90; align-items:center; justify-content:center; background:rgba(0,0,0,.7); backdrop-filter:blur(4px); padding:1rem;">
+  <div class="panel no-hover" style="position:relative; max-height:90vh; width:100%; max-width:48rem; overflow-y:auto;" onclick="event.stopPropagation()">
+    <button id="modal-close" aria-label="Close project details" style="position:absolute; right:1rem; top:1rem; z-index:10; display:flex; height:2.25rem; width:2.25rem; align-items:center; justify-content:center; border-radius:50%; border:1px solid var(--border); background:rgba(6,10,15,.8); color:var(--text); cursor:pointer;">
+      <i data-lucide="x" style="height:1rem; width:1rem;"></i>
+    </button>
+    <div style="position:relative; aspect-ratio:16/9; width:100%; background:var(--bg);">
+      <div id="modal-image" class="scope-grid" style="display:flex; height:100%; width:100%; flex-direction:column; align-items:center; justify-content:center; gap:.5rem; background:var(--bg-panel); color:var(--muted-2);">
+        <i data-lucide="image" style="height:1.75rem; width:1.75rem;"></i>
+        <span id="modal-image-label" class="font-mono" style="font-size:11px; text-transform:uppercase; letter-spacing:.2em;"></span>
+      </div>
+      <button id="modal-prev" aria-label="Previous image" style="position:absolute; left:.75rem; top:50%; transform:translateY(-50%); display:flex; height:2.25rem; width:2.25rem; align-items:center; justify-content:center; border-radius:50%; border:1px solid var(--border); background:rgba(6,10,15,.7); color:var(--text); cursor:pointer;"><i data-lucide="chevron-left" style="height:1rem; width:1rem;"></i></button>
+      <button id="modal-next" aria-label="Next image" style="position:absolute; right:.75rem; top:50%; transform:translateY(-50%); display:flex; height:2.25rem; width:2.25rem; align-items:center; justify-content:center; border-radius:50%; border:1px solid var(--border); background:rgba(6,10,15,.7); color:var(--text); cursor:pointer;"><i data-lucide="chevron-right" style="height:1rem; width:1rem;"></i></button>
+      <div id="modal-dots" style="position:absolute; bottom:.75rem; left:50%; transform:translateX(-50%); display:flex; gap:.375rem;"></div>
+    </div>
+    <div style="padding:1.5rem;">
+      <span id="modal-designator" class="designator" style="font-size:10px; opacity:.6;"></span>
+      <h3 id="modal-title" class="font-display" style="margin-top:.5rem; font-size:1.25rem; font-weight:600; color:var(--text);"></h3>
+      <div id="modal-description" style="margin-top:1rem; display:flex; flex-direction:column; gap:.75rem; font-size:.875rem; line-height:1.7; color:var(--muted);"></div>
+      <div id="modal-stack" style="margin-top:1.25rem; display:flex; flex-wrap:wrap; gap:.5rem;"></div>
+      <div id="modal-links" style="margin-top:1.5rem; display:flex; gap:.75rem;"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+lucide.createIcons();
+
+// ---------- THEME TOGGLE ----------
+const themeToggle = document.getElementById('theme-toggle');
+function setTheme(mode){
+  if(mode === 'light'){
+    document.documentElement.setAttribute('data-theme','light');
+    themeToggle.innerHTML = '<i data-lucide="sun" style="height:1.15rem; width:1.15rem;"></i>';
+  } else {
+    document.documentElement.removeAttribute('data-theme');
+    themeToggle.innerHTML = '<i data-lucide="moon" style="height:1.15rem; width:1.15rem;"></i>';
+  }
+  lucide.createIcons();
+}
+let currentTheme = 'dark';
+setTheme(currentTheme);
+themeToggle.addEventListener('click', ()=>{
+  currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+  setTheme(currentTheme);
+});
+
+// ---------- DATA ----------
+const skillGroups = [
+  {designator:"", title:"PCB Design", description:"From schematic to manufacturable board.", color:"signal", icon:"circuit-board",
+   skills:["Altium Designer","Schematic Capture","Circuit Design","PCB Layout","DRC","Gerber Generation","Output Job Files"]},
+  {designator:"", title:"Embedded Systems", description:"Firmware that talks to silicon and sensors.", color:"power", icon:"cpu",
+   skills:["STM32","ESP32","Sensor Calibration"]},
+  {designator:"", title:"Programming", description:"Languages for logic, control & analysis.", color:"copper", icon:"code-2",
+   skills:["C","MATLAB"]},
+  {designator:"", title:"Tools & Software", description:"The bench equipment of a digital lab.", color:"blue", icon:"wrench",
+   skills:["Altium Designer","STM32CubeIDE","KiCAD","Arduino IDE","STM32CubeMonitor","Keil uVision","ANSYS HFSS","Verilator"]},
+];
+
+const COLOR_VARS = {
+  signal:{fg:"var(--signal)", soft:"var(--signal-soft)"},
+  power:{fg:"var(--power)", soft:"var(--power-soft)"},
+  copper:{fg:"var(--copper)", soft:"var(--copper-soft)"},
+  blue:{fg:"var(--blue)", soft:"var(--blue-soft)"},
+};
+
+const internships = [
+  {designator:"", company:"Punha LLP", role:"PCB Design Intern", period:"03/2026 – 06/2026", location:"Remote",
+   points:["Designed circuits and PCBs for healthcare wearables.",
+    "Explored ADC ICs for designing PCBs for prosthetic wearable devices"
+   ],
+   tags:["KiCAD","PCB Layout","Healthcare Wearables"]},
+  {designator:"", company:"ISRO — Liquid Propulsion Systems Centre", role:"Student Intern — Flow Measurement & Sensor Calibration", period:"10/2025 – 11/2025", location:"Onsite Trivandrum, Kerala",
+   points:[
+     "Calibrated Coriolis and Thermal Mass Flow Meter sensors using standard instrumentation practices.",
+     "Studied flow measurement chains: sensors, transmitters, signal conditioning, TIB and DAQ systems.",
+     "Gained hands-on exposure to analog signal processing, sensor interfacing and industrial instrumentation electronics."
+   ],
+   tags:["Coriolis Flow Meters","Thermal Mass Flow Meters","Signal Conditioning","DAQ Systems","Analog Signal Processing"]},
+];
+
+const TAG_ICONS = {
+  "Coriolis Flow Meters":"gauge", "Thermal Mass Flow Meters":"thermometer",
+  "Signal Conditioning":"activity", "DAQ Systems":"radio", "Analog Signal Processing":"activity"
+};
+
+const projects = [
+  {designator:"", title:"CUSTOM ESP32-S3 MINI PCB WITH USB TYPE-C",
+   summary:"Compact ESP32-S3 development board built around USB Type-C for IoT and wireless applications.",
+   description:[
+     "Designed a custom ESP32-S3 Mini development board integrating USB Type-C for efficient power and data transfer.",
+     "Optimized the PCB for a compact form factor and manufacturability, targeting IoT, embedded systems and wireless applications."
+   ],
+   images:[
+     {label:"Schematic",    src:"images/ESPSCH.png"},
+     {label:"PCB",          src:"images/PCB.png"},
+     {label:"Layer 1",      src:"images/LAYER-1.png"},
+     {label:"Layer 2",      src:"images/LAYER-2.png"},
+     {label:"Layer 3",      src:"images/LAYER-3.png"},
+     {label:"Layer 4",      src:"images/LAYER-4.png"},
+     {label:"3D Top",       src:"images/3-D.png"},
+     {label:"3D Flipped",   src:"images/3-D FLIPPED.png"},
+   ],
+   stack:["Altium Designer","ESP32-S3","USB-C","Gerber"],
+   github:"https://github.com/Sabari-M-BE-ECE/CUSTOM_ESP32_S3_MINI"},
+  {designator:"", title:"ORIENTATION CONTROL— MPU6050 + STM32F401CCU6",
+   summary:"Sensor-fused tilt estimation using a Kalman filter on an STM32 microcontroller.",
+   description:[
+     "Acquired raw accelerometer and gyroscope data, applied offset calibration, and calculated roll angle from accelerometer readings.",
+     "Implemented a Kalman filter in C to fuse accelerometer and gyroscope data, achieving smooth and precise tilt-angle estimation."
+   ],
+   images:[
+     {label:"Roll Angle Graph", src:"images/kalman_filtered_output.png"},
+     {label:"Demo",             src:"images/data.png"},
+   ],
+   stack:["STM32F401CCU6","MPU6050","C","Kalman Filter"],
+   github:"https://github.com/Sabari-M-BE-ECE/ORIENTATION_CONTROL_USING_MPU6050-STM32F401CCU6"},
+  {designator:"", title:"CIRCULAR LED SEQUENCER CIRCUIT DESIGN - PCB",
+   summary:"Designed and implemented a Circular LED Sequencer using the NE555 Timer and CD4017 Decade Counter to create a continuous 10-LED chasing pattern.",
+   description:[
+     "Sequential LED Control: Designed a circular LED sequencer using the NE555 Timer in astable mode to generate clock pulses and the CD4017 Decade Counter to drive 10 LEDs in a continuous chasing pattern.",
+     "Adjustable Timing: Incorporated an RC timing network with a potentiometer, enabling users to vary the LED sequencing speed for different visual effects.",
+     "Custom PCB Design: Created a compact and organized PCB layout with proper component placement, clean routing, and current-limiting resistors for reliable operation and ease of fabrication."
+   ],
+   images:[
+     {label:"Circuit Setup",   src:"images/SEQ SCH.png"},
+     {label:"2D VIEW",         src:"images/2-D VIEW.png"},
+     {label:"3D VIEW TOP",     src:"images/3-D TOP.png"},
+     {label:"3D VIEW BOTTOM",  src:"images/3-D BOTTOM.png"},
+   ],
+   stack:["Altium Designer","DRC","Gerber","Routing"],
+   github:"https://github.com/Sabari-M-BE-ECE/CIR_LED_SEQ"},
+];
+
+const certifications = [
+  {designator:"", title:"Altium Skilled Engineer", issuer:"Altium", date:"2025", verifyUrl:"https://www.credly.com/earner/earned/badge/1af9df0a-dec0-4b92-a36b-34825b2bfce8"},
+  {designator:"", title:"Altium Emerging Engineer", issuer:"Altium", date:"2025", verifyUrl:"https://www.credly.com/badges/c376166e-e427-4689-957a-b14d0c218ee2"},
+  {designator:"", title:"Altium Designer Essentials — On Demand", issuer:"Altium", date:"2025", verifyUrl:"https://ti-user-certificates.s3.amazonaws.com/8d271d4d-1d22-4519-8219-3870666aff3b/d58465f3-b795-4358-a7bb-4a69e0a323dd-sabari-m-df9e323d-366a-43da-83d1-e91ef62439cd-certificate.pdf"},
+  {designator:"", title:"Altium Workspace User Management", issuer:"Altium", date:"2025", verifyUrl:"https://ti-user-certificates.s3.amazonaws.com/8d271d4d-1d22-4519-8219-3870666aff3b/d58465f3-b795-4358-a7bb-4a69e0a323dd-sabari-m-5f660a8c-9ff0-4103-8f50-87ec91a769b6-certificate.pdf"},
+  {designator:"", title:"PCB Design Essentials", issuer:"Altium", date:"2025", verifyUrl:"https://www.credly.com/badges/8513868d-26c3-4bba-aa23-88d9a93f7341"},
+  {designator:"", title:"C Programming Hands-On", issuer:"Skill-Rack", date:"2024", verifyUrl:"https://www.skillrack.com/faces/free/certificate.xhtml?t=cert&id=538928&key=ZBO"},
+];
+
+const roles = ["PCB Designer","Hardware Design","Exploring Analog Circuits","Electronics Enthusiast"];
+
+// ---------- NAVBAR ----------
+const navbar = document.getElementById('navbar');
+function onScroll(){
+  if(window.scrollY > 24){
+    navbar.style.borderBottomColor = "var(--border)";
+    navbar.style.background = "rgba(6,10,15,.8)";
+    navbar.style.backdropFilter = "blur(12px)";
+  } else {
+    navbar.style.borderBottomColor = "transparent";
+    navbar.style.background = "transparent";
+    navbar.style.backdropFilter = "none";
+  }
+}
+window.addEventListener('scroll', onScroll, {passive:true});
+onScroll();
+
+document.querySelectorAll('.nav-link, .mobile-link').forEach(el=>{
+  el.addEventListener('mouseenter', ()=> el.style.color = 'var(--signal)');
+  el.addEventListener('mouseleave', ()=> el.style.color = '');
+});
+document.querySelectorAll('.mobile-link').forEach(el=>{
+  el.addEventListener('mouseenter', ()=> el.style.background = 'var(--bg-panel)');
+  el.addEventListener('mouseleave', ()=> el.style.background = '');
+});
+
+// responsive: show desktop nav on wider screens
+function applyResponsive(){
+  const isDesktop = window.innerWidth >= 768;
+  document.getElementById('desktop-nav').style.display = isDesktop ? 'flex' : 'none';
+  document.getElementById('desktop-resume').style.display = isDesktop ? 'flex' : 'none';
+  document.getElementById('mobile-toggle').style.display = isDesktop ? 'none' : 'flex';
+  if(isDesktop) document.getElementById('mobile-menu').style.display = 'none';
+}
+window.addEventListener('resize', applyResponsive);
+applyResponsive();
+
+const mobileToggle = document.getElementById('mobile-toggle');
+const mobileMenu = document.getElementById('mobile-menu');
+let menuOpen = false;
+mobileToggle.addEventListener('click', ()=>{
+  menuOpen = !menuOpen;
+  mobileMenu.style.display = menuOpen ? 'block' : 'none';
+  mobileToggle.innerHTML = menuOpen ? '<i data-lucide="x" style="height:1.25rem;width:1.25rem;"></i>' : '<i data-lucide="menu" style="height:1.25rem;width:1.25rem;"></i>';
+  lucide.createIcons();
+  document.body.style.overflow = menuOpen ? 'hidden' : '';
+});
+document.querySelectorAll('.mobile-link').forEach(el=>{
+  el.addEventListener('click', ()=>{
+    menuOpen = false;
+    mobileMenu.style.display = 'none';
+    document.body.style.overflow = '';
+    mobileToggle.innerHTML = '<i data-lucide="menu" style="height:1.25rem;width:1.25rem;"></i>';
+    lucide.createIcons();
+  });
+});
+
+// ---------- TYPEWRITER ----------
+const tw = document.getElementById('typewriter');
+let ri = 0, ci = 0, deleting = false;
+function tick(){
+  const word = roles[ri];
+  if(!deleting){
+    ci++;
+    tw.textContent = word.slice(0, ci);
+    if(ci === word.length){ deleting = true; setTimeout(tick, 1400); return; }
+    setTimeout(tick, 60);
+  } else {
+    ci--;
+    tw.textContent = word.slice(0, ci);
+    if(ci === 0){ deleting = false; ri = (ri+1) % roles.length; setTimeout(tick, 200); return; }
+    setTimeout(tick, 35);
+  }
+}
+tick();
+setInterval(()=>{ document.getElementById('cursor').style.opacity = document.getElementById('cursor').style.opacity === '0' ? '1' : '0'; }, 500);
+
+// ---------- PCB BACKGROUND SVG ----------
+function pcbSVG(dense){
+  return `<svg viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" style="height:100%; width:100%; opacity:.35;">
+    <defs>
+      <linearGradient id="traceFade" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="var(--signal)" stop-opacity="0.5"/>
+        <stop offset="100%" stop-color="var(--blue)" stop-opacity="0.05"/>
+      </linearGradient>
+      <radialGradient id="padGlow" r="1">
+        <stop offset="0%" stop-color="var(--signal)" stop-opacity="0.9"/>
+        <stop offset="100%" stop-color="var(--signal)" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    <g stroke="var(--border)" stroke-width="1.5" fill="none">
+      <path d="M0,120 H260 L320,180 H620 L680,240 H1100 L1160,300 H1440"/>
+      <path d="M0,300 H160 L220,360 H540"/>
+      <path d="M120,0 V160 L180,220 V520"/>
+      <path d="M1440,520 H1180 L1120,460 H760 L700,400 H300"/>
+      <path d="M1440,700 H1040 L980,640 H560 L500,580 H140 L80,640 V900"/>
+      <path d="M860,900 V680 L920,620 H1260"/>
+      <path d="M340,900 V760 L400,700 H780 L840,640"/>
+      <path d="M1440,140 H1320 L1260,200 V440"/>
+    </g>
+    <g stroke="url(#traceFade)" stroke-width="2" fill="none" class="trace-line">
+      <path d="M0,120 H260 L320,180 H620 L680,240 H1100 L1160,300 H1440"/>
+      <path d="M1440,700 H1040 L980,640 H560 L500,580 H140 L80,640 V900"/>
+      <path d="M120,0 V160 L180,220 V520"/>
+      ${dense ? '<path d="M860,900 V680 L920,620 H1260"/><path d="M1440,140 H1320 L1260,200 V440"/>' : ''}
+    </g>
+    ${[[260,120],[620,180],[1100,240],[160,300],[540,360],[180,220],[1180,520],[760,460],[1040,700],[560,640],[140,580],[920,620],[780,700]].map(([cx,cy],i)=>
+      `<circle cx="${cx}" cy="${cy}" r="22" fill="url(#padGlow)" class="led-pulse" style="animation-delay:${(i%6)*0.4}s"/>`
+    ).join('')}
+    ${[[260,120],[620,180],[1100,240],[160,300],[540,360],[180,220],[1180,520],[760,460],[1040,700],[560,640],[140,580],[920,620],[780,700]].map(([cx,cy])=>
+      `<circle cx="${cx}" cy="${cy}" r="3.5" fill="var(--signal)"/>`
+    ).join('')}
+    ${dense ? `
+      <circle r="4" fill="var(--power)"><animateMotion dur="6s" repeatCount="indefinite" path="M0,120 H260 L320,180 H620 L680,240 H1100 L1160,300 H1440"/></circle>
+      <circle r="4" fill="var(--copper)"><animateMotion dur="8s" repeatCount="indefinite" path="M1440,700 H1040 L980,640 H560 L500,580 H140 L80,640 V900"/></circle>
+      <circle r="3.5" fill="var(--blue)"><animateMotion dur="5s" repeatCount="indefinite" path="M120,0 V160 L180,220 V520"/></circle>
+    ` : ''}
+    <!-- Resistor -->
+    <g transform="translate(420,420)" stroke="var(--blue)" stroke-width="2" fill="none" opacity="0.5">
+      <path d="M-40,0 H-26 L-20,-12 L-10,12 L0,-12 L10,12 L20,-12 L26,0 H40"/>
+      <rect x="-26" y="-12" width="52" height="24" rx="3" stroke="var(--blue)" fill="none" opacity="0.4"/>
+    </g>
+    <!-- Capacitor -->
+    <g transform="translate(1020,360)" stroke="var(--copper)" stroke-width="2" fill="none" opacity="0.5">
+      <line x1="-30" y1="0" x2="-6" y2="0"/>
+      <line x1="6" y1="0" x2="30" y2="0"/>
+      <line x1="-6" y1="-18" x2="-6" y2="18"/>
+      <line x1="6" y1="-22" x2="6" y2="22"/>
+    </g>
+    <!-- IC Chip -->
+    <g transform="translate(300,640)" stroke="var(--signal)" stroke-width="2" fill="none" opacity="0.45">
+      <rect x="-45" y="-30" width="90" height="60" rx="4"/>
+      <circle cx="-30" cy="-30" r="2.5" fill="var(--signal)" stroke="none"/>
+      ${[-25,-12.5,0,12.5,25].map(x=>`<line x1="${x}" y1="-30" x2="${x}" y2="-40"/><line x1="${x}" y1="30" x2="${x}" y2="40"/>`).join('')}
+      ${[-15,0,15].map(y=>`<line x1="-45" y1="${y}" x2="-55" y2="${y}"/><line x1="45" y1="${y}" x2="55" y2="${y}"/>`).join('')}
+    </g>
+    <!-- Diode -->
+    <g transform="translate(1240,560) rotate(20)" stroke="var(--power)" stroke-width="2" fill="none" opacity="0.5">
+      <line x1="-30" y1="0" x2="-8" y2="0"/>
+      <line x1="8" y1="0" x2="30" y2="0"/>
+      <path d="M-8,-12 L-8,12 L12,0 Z" fill="var(--power)" fill-opacity="0.25"/>
+      <line x1="12" y1="-12" x2="12" y2="12"/>
+    </g>
+    <!-- Inductor -->
+    <g transform="translate(720,780)" stroke="var(--blue)" stroke-width="2" fill="none" opacity="0.45">
+      <line x1="-40" y1="0" x2="-28" y2="0"/>
+      <path d="M-28,0 a7,9 0 0 1 14,0 a7,9 0 0 1 14,0 a7,9 0 0 1 14,0 a7,9 0 0 1 14,0"/>
+      <line x1="28" y1="0" x2="40" y2="0"/>
+    </g>
+    <!-- Transistor -->
+    <g transform="translate(1340,200)" stroke="var(--copper)" stroke-width="2" fill="none" opacity="0.45">
+      <circle cx="0" cy="0" r="24"/>
+      <line x1="-10" y1="-12" x2="-10" y2="12"/>
+      <line x1="-10" y1="-6" x2="14" y2="-16"/>
+      <line x1="-10" y1="6" x2="14" y2="16"/>
+      <line x1="14" y1="-16" x2="24" y2="-24"/>
+      <line x1="14" y1="16" x2="24" y2="24"/>
+    </g>
+    <!-- LED -->
+    <g transform="translate(180,500) rotate(-15)" stroke="var(--power)" stroke-width="2" fill="none" opacity="0.5">
+      <line x1="-30" y1="0" x2="-10" y2="0"/>
+      <line x1="10" y1="0" x2="30" y2="0"/>
+      <path d="M-10,-12 L-10,12 L12,0 Z" fill="var(--power)" fill-opacity="0.2"/>
+      <line x1="12" y1="-12" x2="12" y2="12"/>
+      <path d="M2,-18 L10,-26 M10,-26 L4,-26 M10,-26 L10,-20" />
+      <path d="M12,-10 L20,-18 M20,-18 L14,-18 M20,-18 L20,-12" />
+    </g>
+    <!-- Potentiometer -->
+    <g transform="translate(980,800)" stroke="var(--blue)" stroke-width="2" fill="none" opacity="0.45">
+      <rect x="-26" y="-16" width="52" height="32" rx="4"/>
+      <line x1="-26" y1="0" x2="-44" y2="0"/>
+      <line x1="26" y1="0" x2="44" y2="0"/>
+      <line x1="0" y1="-16" x2="0" y2="-32"/>
+      <path d="M-10,8 L6,-8 L10,-2" />
+    </g>
+    <!-- Switch -->
+    <g transform="translate(520,140) rotate(8)" stroke="var(--signal)" stroke-width="2" fill="none" opacity="0.45">
+      <circle cx="-24" cy="0" r="3" fill="var(--signal)" stroke="none"/>
+      <circle cx="24" cy="0" r="3" fill="var(--signal)" stroke="none"/>
+      <line x1="-40" y1="0" x2="-24" y2="0"/>
+      <line x1="24" y1="0" x2="40" y2="0"/>
+      <line x1="-24" y1="0" x2="18" y2="-16"/>
+    </g>
+    <!-- Connector / header pins -->
+    <g transform="translate(680,60)" stroke="var(--copper)" stroke-width="2" fill="none" opacity="0.4">
+      <rect x="-36" y="-10" width="72" height="20" rx="2"/>
+      ${[-24,-8,8,24].map(x=>`<line x1="${x}" y1="10" x2="${x}" y2="20"/>`).join('')}
+    </g>
+    <!-- Battery -->
+    <g transform="translate(80,800) rotate(-6)" stroke="var(--power)" stroke-width="2" fill="none" opacity="0.45">
+      <line x1="-30" y1="-16" x2="-30" y2="16"/>
+      <line x1="-14" y1="-26" x2="-14" y2="26"/>
+      <line x1="14" y1="-16" x2="14" y2="16"/>
+      <line x1="30" y1="-26" x2="30" y2="26"/>
+      <line x1="-30" y1="0" x2="-50" y2="0"/>
+      <line x1="30" y1="0" x2="50" y2="0"/>
+      <line x1="-14" y1="0" x2="14" y2="0" opacity="0"/>
+    </g>
+  </svg>`;
+}
+document.getElementById('pcb-hero').innerHTML = pcbSVG(true);
+document.getElementById('pcb-about').innerHTML = pcbSVG(false);
+document.getElementById('pcb-skills').innerHTML = pcbSVG(false);
+document.getElementById('pcb-experience').innerHTML = pcbSVG(false);
+document.getElementById('pcb-projects').innerHTML = pcbSVG(false);
+document.getElementById('pcb-certs').innerHTML = pcbSVG(false);
+document.getElementById('pcb-contact').innerHTML = pcbSVG(true);
+
+// ---------- RENDER SKILLS ----------
+const skillsGrid = document.getElementById('skills-grid');
+skillGroups.forEach(g=>{
+  const c = COLOR_VARS[g.color];
+  const div = document.createElement('div');
+  div.className = 'panel fade-up';
+  div.style.padding = '1.5rem';
+  div.style.position = 'relative';
+  div.innerHTML = `
+    <div style="display:flex; align-items:center; gap:.75rem;">
+      <span style="display:flex; height:2.75rem; width:2.75rem; align-items:center; justify-content:center; border-radius:.375rem; border:1px solid ${c.fg}; color:${c.fg};">
+        <i data-lucide="${g.icon}" style="height:1.25rem; width:1.25rem;"></i>
+      </span>
+      <div>
+        <h3 class="font-display" style="font-size:1.125rem; font-weight:600; color:var(--text); margin:0;">${g.title}</h3>
+        <p style="font-size:.75rem; color:var(--muted); margin:0;">${g.description}</p>
+      </div>
+      <span class="designator" style="margin-left:auto; font-size:10px; opacity:.5;">${g.designator}</span>
+    </div>
+    <div style="margin-top:1.25rem; display:flex; flex-wrap:wrap; gap:.5rem;">
+      ${g.skills.map(s=>`<span class="skill-chip font-mono" style="--accent:${c.fg}; --accent-soft:${c.soft}; border-radius:9999px; border:1px solid var(--border); padding:.4rem .75rem; font-size:.75rem; color:var(--text);">${s}</span>`).join('')}
+    </div>
+  `;
+  skillsGrid.appendChild(div);
+});
+
+// ---------- RENDER EXPERIENCE ----------
+const expGrid = document.getElementById('experience-grid');
+internships.forEach(job=>{
+  const div = document.createElement('div');
+  div.className = 'panel fade-up';
+  div.style.padding = '1.5rem';
+  div.innerHTML = `
+    <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:.75rem;">
+      <div style="display:flex; align-items:center; gap:.75rem;">
+        <span style="display:flex; height:2.75rem; width:2.75rem; align-items:center; justify-content:center; border-radius:.375rem; border:1px solid rgba(70,240,224,.4); color:var(--signal);">
+          <i data-lucide="briefcase" style="height:1.25rem; width:1.25rem;"></i>
+        </span>
+        <div>
+          <h3 class="font-display" style="font-size:1.125rem; font-weight:600; color:var(--text); margin:0;">${job.role}</h3>
+          <p style="font-size:.875rem; color:var(--muted); margin:0;">${job.company}</p>
+        </div>
+      </div>
+      <span class="designator" style="font-size:10px; opacity:.5;">${job.designator}</span>
+    </div>
+    <div class="font-mono" style="margin-top:1rem; display:flex; flex-wrap:wrap; align-items:center; gap:.75rem; font-size:.75rem; color:var(--power);">
+      <span style="border-radius:9999px; border:1px solid rgba(62,224,139,.3); padding:.25rem .75rem;">${job.period}</span>
+      <span style="color:var(--muted);">${job.location}</span>
+    </div>
+    <ul style="margin-top:1.25rem; display:flex; flex-direction:column; gap:.6rem; padding:0; list-style:none;">
+      ${job.points.map(p=>`<li style="display:flex; gap:.75rem; font-size:.875rem; line-height:1.6; color:var(--muted);"><span style="margin-top:.45rem; height:6px; width:6px; flex-shrink:0; border-radius:50%; background:var(--signal);"></span>${p}</li>`).join('')}
+    </ul>
+    <div style="margin-top:1rem; display:flex; flex-wrap:wrap; gap:.5rem;">
+      ${job.tags.map(t=>`<span class="font-mono" style="display:flex; align-items:center; gap:.4rem; border-radius:9999px; border:1px solid var(--border); padding:.25rem .75rem; font-size:11px; color:var(--muted);"><i data-lucide="${TAG_ICONS[t]||'activity'}" style="height:.75rem; width:.75rem; color:var(--blue);"></i>${t}</span>`).join('')}
+    </div>
+  `;
+  expGrid.appendChild(div);
+});
+
+// ---------- RENDER PROJECTS ----------
+const projectsGrid = document.getElementById('projects-grid');
+projects.forEach((p, idx)=>{
+  const div = document.createElement('div');
+  div.className = 'panel fade-up';
+  div.style.overflow = 'hidden';
+  div.innerHTML = `
+    <div style="position:relative; aspect-ratio:4/3; width:100%; overflow:hidden; background:var(--bg);">
+      <div style="position:relative; height:100%; width:100%;">
+        ${p.images[0].src
+          ? `<img class="proj-img-el" src="${p.images[0].src}" alt="${p.images[0].label}" style="width:100%;height:100%;object-fit:cover;display:block;"/>`
+          : `<div class="scope-grid" style="display:flex;height:100%;width:100%;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;background:var(--bg-panel);color:var(--muted-2);"><i data-lucide="image" style="height:1.75rem;width:1.75rem;"></i></div>`
+        }
+        <span class="font-mono proj-img-label" style="display:none;">${p.images[0].label}</span>
+      </div>
+      <div style="position:absolute; inset:0; background:linear-gradient(to top, var(--bg-panel), transparent, transparent); opacity:.8;"></div>
+      <span class="designator" style="position:absolute; left:.75rem; top:.75rem; border-radius:9999px; border:1px solid var(--border); background:rgba(6,10,15,.7); padding:.25rem .6rem; font-size:10px;">${p.designator}</span>
+      <div class="proj-dots" style="position:absolute; bottom:.75rem; left:.75rem; display:flex; gap:.375rem;">
+        ${p.images.map((img,i)=>`<button data-idx="${i}" aria-label="Preview ${img.label}" style="height:6px; border-radius:9999px; border:none; cursor:pointer; ${i===0?'width:24px; background:var(--signal);':'width:6px; background:var(--muted-2);'}"></button>`).join('')}
+      </div>
+    </div>
+    <div style="padding:1.5rem;">
+      <h3 class="font-display" style="font-size:1.125rem; font-weight:600; color:var(--text); margin:0;">${p.title}</h3>
+      <p style="margin-top:.5rem; font-size:.875rem; line-height:1.6; color:var(--muted);">${p.summary}</p>
+      <div style="margin-top:1rem; display:flex; flex-wrap:wrap; gap:.5rem;">
+        ${p.stack.map(s=>`<span class="font-mono" style="border-radius:9999px; border:1px solid var(--border); padding:.25rem .6rem; font-size:10px; color:var(--blue);">${s}</span>`).join('')}
+      </div>
+      <div style="margin-top:1.25rem; display:flex; align-items:center; gap:.75rem;">
+        <button class="font-mono proj-expand" data-idx="${idx}" style="background:none; border:none; cursor:pointer; font-size:.75rem; text-transform:uppercase; letter-spacing:.2em; color:var(--signal);">Expand for details →</button>
+        <div style="margin-left:auto; display:flex; gap:.5rem;">
+          ${p.github ? `<a href="${p.github}" target="_blank" rel="noopener noreferrer" aria-label="View on GitHub" style="display:flex; height:2.25rem; width:2.25rem; align-items:center; justify-content:center; border-radius:.375rem; border:1px solid var(--border); color:var(--text); text-decoration:none;"><svg viewBox="0 0 24 24" fill="currentColor" style="height:1rem;width:1rem;"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg></a>` : ''}
+        </div>
+      </div>
+    </div>
+  `;
+  // dot switching
+  div.querySelectorAll('.proj-dots button').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const i = +btn.dataset.idx;
+      const imgEl = div.querySelector('.proj-img-el');
+      if(imgEl){ imgEl.src = p.images[i].src; imgEl.alt = p.images[i].label; }
+      div.querySelectorAll('.proj-dots button').forEach((b,bi)=>{
+        b.style.width = bi===i ? '24px':'6px';
+        b.style.background = bi===i ? 'var(--signal)' : 'var(--muted-2)';
+      });
+    });
+  });
+  div.querySelector('.proj-expand').addEventListener('click', ()=> openModal(idx));
+  projectsGrid.appendChild(div);
+});
+
+// ---------- PROJECT MODAL ----------
+const modal = document.getElementById('project-modal');
+let modalProject = null, modalActive = 0;
+
+function renderModal(){
+  const p = modalProject;
+  const imgEl = document.getElementById('modal-image');
+  if(p.images[modalActive].src){
+    imgEl.innerHTML = `<img src="${p.images[modalActive].src}" alt="${p.images[modalActive].label}" style="width:100%;height:100%;object-fit:contain;background:var(--bg);"/>`;
+  } else {
+    imgEl.innerHTML = `<i data-lucide="image" style="height:1.75rem;width:1.75rem;"></i><span id="modal-image-label" class="font-mono" style="font-size:11px;text-transform:uppercase;letter-spacing:.2em;">${p.images[modalActive].label}</span>`;
+  }
+  document.getElementById('modal-designator').textContent = p.designator;
+  document.getElementById('modal-description').innerHTML = p.description.map(d=>`<p style="margin:0;">${d}</p>`).join('');
+  document.getElementById('modal-stack').innerHTML = p.stack.map(s=>`<span class="font-mono" style="border-radius:9999px; border:1px solid var(--border); padding:.3rem .75rem; font-size:11px; color:var(--blue);">${s}</span>`).join('');
+  document.getElementById('modal-links').innerHTML = (p.github ? `<a href="${p.github}" target="_blank" rel="noopener noreferrer" class="btn btn-outline"><svg viewBox="0 0 24 24" fill="currentColor" style="height:.875rem;width:.875rem;"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg> Source File</a>` : '');
+  const dots = document.getElementById('modal-dots');
+  dots.innerHTML = p.images.map((_,i)=>`<button data-idx="${i}" aria-label="Show image ${i+1}" style="height:6px; border-radius:9999px; border:none; cursor:pointer; ${i===modalActive?'width:24px; background:var(--signal);':'width:6px; background:var(--muted-2);'}"></button>`).join('');
+  dots.querySelectorAll('button').forEach(b=> b.addEventListener('click', ()=>{ modalActive = +b.dataset.idx; renderModal(); }));
+  lucide.createIcons();
+}
+
+function openModal(idx){
+  modalProject = projects[idx];
+  modalActive = 0;
+  renderModal();
+  modal.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+function closeModal(){
+  modal.style.display = 'none';
+  document.body.style.overflow = '';
+}
+document.getElementById('modal-close').addEventListener('click', closeModal);
+modal.addEventListener('click', closeModal);
+document.getElementById('modal-prev').addEventListener('click', (e)=>{ e.stopPropagation(); modalActive = (modalActive - 1 + modalProject.images.length) % modalProject.images.length; renderModal(); });
+document.getElementById('modal-next').addEventListener('click', (e)=>{ e.stopPropagation(); modalActive = (modalActive + 1) % modalProject.images.length; renderModal(); });
+window.addEventListener('keydown', (e)=>{
+  if(modal.style.display !== 'flex') return;
+  if(e.key === 'Escape') closeModal();
+  if(e.key === 'ArrowRight'){ modalActive = (modalActive + 1) % modalProject.images.length; renderModal(); }
+  if(e.key === 'ArrowLeft'){ modalActive = (modalActive - 1 + modalProject.images.length) % modalProject.images.length; renderModal(); }
+});
+
+// ---------- RENDER CERTIFICATIONS ----------
+const certsGrid = document.getElementById('certs-grid');
+certifications.forEach(c=>{
+  const div = document.createElement('div');
+  div.className = 'panel fade-up';
+  div.style.padding = '1.25rem';
+  div.style.position = 'relative';
+  div.innerHTML = `
+    <span class="designator" style="position:absolute; right:.75rem; top:.75rem; font-size:10px; opacity:.5;">${c.designator}</span>
+    <div style="display:flex; align-items:center; gap:.75rem;">
+      <div style="display:flex; height:3rem; width:3rem; align-items:center; justify-content:center; overflow:hidden; border-radius:.375rem; border:1px solid var(--border); background:var(--bg);">
+        <i data-lucide="award" style="height:1.25rem; width:1.25rem; color:var(--signal);"></i>
+      </div>
+      <div>
+        <h3 class="font-display" style="font-size:.875rem; font-weight:600; line-height:1.3; color:var(--text); margin:0;">${c.title}</h3>
+        <p style="font-size:.75rem; color:var(--muted); margin:0;">${c.issuer}</p>
+      </div>
+    </div>
+    <div class="font-mono" style="margin-top:1rem; display:flex; align-items:center; gap:.5rem; font-size:11px; color:var(--power);">
+      <i data-lucide="badge-check" style="height:.875rem; width:.875rem;"></i>${c.date}
+    </div>
+    <div style="margin-top:1rem; display:flex; flex-wrap:wrap; gap:.5rem;">
+      <a href="${c.verifyUrl}" target="_blank" rel="noopener noreferrer" class="font-mono" style="flex:1; display:flex; align-items:center; justify-content:center; gap:.4rem; border-radius:.375rem; border:1px solid var(--border); padding:.5rem .75rem; font-size:11px; text-transform:uppercase; letter-spacing:.2em; color:var(--text); text-decoration:none;">Verify <i data-lucide="external-link" style="height:.75rem; width:.75rem;"></i></a>
+    </div>
+  `;
+  certsGrid.appendChild(div);
+});
+
+lucide.createIcons();
+
+// ---------- SCROLL REVEAL ----------
+const observer = new IntersectionObserver((entries)=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting) e.target.classList.add('in');
+  });
+}, {threshold:0.1, rootMargin:'-60px'});
+document.querySelectorAll('.fade-up, .fade-left, .fade-right').forEach(el=> observer.observe(el));
+
+// ---------- CONTACT FORM ----------
+document.getElementById('year').textContent = new Date().getFullYear();
+
+document.getElementById('contact-form').addEventListener('submit', function(e){
+  e.preventDefault();
+  const name = document.getElementById('f-name').value.trim();
+  const email = document.getElementById('f-email').value.trim();
+  const message = document.getElementById('f-message').value.trim();
+  let valid = true;
+
+  const errName = document.getElementById('err-name');
+  const errEmail = document.getElementById('err-email');
+  const errMessage = document.getElementById('err-message');
+  [errName, errEmail, errMessage].forEach(el=> el.style.display = 'none');
+
+  if(!name){ errName.textContent = 'Please enter your name.'; errName.style.display='block'; valid = false; }
+  if(!email){ errEmail.textContent = 'Please enter your email.'; errEmail.style.display='block'; valid = false; }
+  else if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ errEmail.textContent = 'Enter a valid email address.'; errEmail.style.display='block'; valid = false; }
+  if(!message || message.length < 10){ errMessage.textContent = 'Message should be at least 10 characters.'; errMessage.style.display='block'; valid = false; }
+
+  if(!valid) return;
+
+  const submitBtn = document.getElementById('submit-btn');
+  const submitLabel = document.getElementById('submit-label');
+  submitBtn.disabled = true;
+  submitLabel.textContent = 'Opening mail client...';
+
+  window.location.href = `mailto:sabari.m.s.mani@gmail.com?subject=${encodeURIComponent('Portfolio contact from ' + name)}&body=${encodeURIComponent(message + '\\n\\n— ' + name + ' (' + email + ')')}`;
+
+  setTimeout(()=>{
+    submitLabel.textContent = 'Ready to send!';
+    setTimeout(()=>{ submitBtn.disabled = false; submitLabel.textContent = 'Send Message'; }, 2000);
+  }, 700);
+});
+</script>
+</body>
+</html>
