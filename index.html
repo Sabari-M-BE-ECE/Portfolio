@@ -77,6 +77,10 @@ a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visib
 input,textarea{background:var(--bg); border:1px solid var(--border); border-radius:.375rem; padding:.75rem 1rem; font-size:.875rem; color:var(--text); outline:none; width:100%; font-family:inherit; transition:border-color .2s;}
 input:focus,textarea:focus{border-color:var(--signal);}
 [data-icon]{display:inline-block;}
+.proj-media{position:relative; aspect-ratio:4/3; width:100%; overflow:hidden; background:var(--bg);}
+.proj-img-el{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block; opacity:0; transform:scale(1); transition:opacity 1.2s ease-in-out, transform 6s ease-out;}
+.proj-img-el.active{opacity:1;}
+.proj-media:hover .proj-img-el.active{transform:scale(1.08);}
 </style>
 </head>
 <body>
@@ -421,7 +425,7 @@ const COLOR_VARS = {
 };
 
 const projects = [
-  {designator:"", title:"CUSTOM ESP32-S3 MINI PCB WITH USB TYPE-C",
+  {designator:"4-Layer", title:"CUSTOM ESP32-S3 MINI PCB WITH USB TYPE-C",
    summary:"Compact ESP32-S3 development board built around USB Type-C for IoT and wireless applications.",
    description:[
      "Designed a custom ESP32-S3 Mini development board integrating USB Type-C for efficient power and data transfer.",
@@ -451,7 +455,7 @@ const projects = [
    ],
    stack:["STM32F401CCU6","MPU6050","C","Kalman Filter"],
    github:"https://github.com/Sabari-M-BE-ECE/ORIENTATION_CONTROL_USING_MPU6050-STM32F401CCU6"},
-  {designator:"", title:"CIRCULAR LED SEQUENCER CIRCUIT DESIGN - PCB",
+  {designator:"2-Layer", title:"CIRCULAR LED SEQUENCER CIRCUIT DESIGN - PCB",
    summary:"Designed and implemented a Circular LED Sequencer using the NE555 Timer and CD4017 Decade Counter to create a continuous 10-LED chasing pattern.",
    description:[
      "Sequential LED Control: Designed a circular LED sequencer using the NE555 Timer in astable mode to generate clock pulses and the CD4017 Decade Counter to drive 10 LEDs in a continuous chasing pattern.",
@@ -763,17 +767,15 @@ projects.forEach((p, idx)=>{
   div.className = 'panel fade-up';
   div.style.overflow = 'hidden';
   div.innerHTML = `
-    <div style="position:relative; aspect-ratio:4/3; width:100%; overflow:hidden; background:var(--bg);">
-      <div style="position:relative; height:100%; width:100%;">
-        ${p.images[0].src
-          ? `<img class="proj-img-el" src="${p.images[0].src}" alt="${p.images[0].label}" style="width:100%;height:100%;object-fit:cover;display:block;"/>`
-          : `<div class="scope-grid" style="display:flex;height:100%;width:100%;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;background:var(--bg-panel);color:var(--muted-2);"><i data-lucide="image" style="height:1.75rem;width:1.75rem;"></i></div>`
-        }
-        <span class="font-mono proj-img-label" style="display:none;">${p.images[0].label}</span>
-      </div>
-      <div style="position:absolute; inset:0; background:linear-gradient(to top, var(--bg-panel), transparent, transparent); opacity:.8;"></div>
+    <div class="proj-media">
+      ${p.images[0].src
+        ? `<img class="proj-img-el active" src="${p.images[0].src}" alt="${p.images[0].label}"/>
+           <img class="proj-img-el" src="" alt=""/>`
+        : `<div class="scope-grid" style="display:flex;height:100%;width:100%;flex-direction:column;align-items:center;justify-content:center;gap:.5rem;background:var(--bg-panel);color:var(--muted-2);"><i data-lucide="image" style="height:1.75rem;width:1.75rem;"></i></div>`
+      }
+      <div style="position:absolute; inset:0; background:linear-gradient(to top, var(--bg-panel), transparent, transparent); opacity:.8; pointer-events:none;"></div>
       <span class="designator" style="position:absolute; left:.75rem; top:.75rem; border-radius:9999px; border:1px solid var(--border); background:rgba(6,10,15,.7); padding:.25rem .6rem; font-size:10px;">${p.designator}</span>
-      <div class="proj-dots" style="position:absolute; bottom:.75rem; left:.75rem; display:flex; gap:.375rem;">
+      <div class="proj-dots" style="position:absolute; bottom:.75rem; left:.75rem; display:flex; gap:.375rem; z-index:2;">
         ${p.images.map((img,i)=>`<button data-idx="${i}" aria-label="Preview ${img.label}" style="height:6px; border-radius:9999px; border:none; cursor:pointer; ${i===0?'width:24px; background:var(--signal);':'width:6px; background:var(--muted-2);'}"></button>`).join('')}
       </div>
     </div>
@@ -791,18 +793,42 @@ projects.forEach((p, idx)=>{
       </div>
     </div>
   `;
-  // dot switching
-  div.querySelectorAll('.proj-dots button').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const i = +btn.dataset.idx;
-      const imgEl = div.querySelector('.proj-img-el');
-      if(imgEl){ imgEl.src = p.images[i].src; imgEl.alt = p.images[i].label; }
+  // image carousel: auto-cycling crossfade + dot navigation
+  if(p.images.length && p.images[0].src){
+    const imgs = div.querySelectorAll('.proj-img-el');
+    let active = 0, frontIsFirst = true, autoplay;
+
+    function showImage(i){
+      if(i === active) return;
+      const showing = frontIsFirst ? imgs[1] : imgs[0];
+      const hiding = frontIsFirst ? imgs[0] : imgs[1];
+      showing.src = p.images[i].src;
+      showing.alt = p.images[i].label;
+      showing.classList.add('active');
+      hiding.classList.remove('active');
+      frontIsFirst = !frontIsFirst;
+      active = i;
       div.querySelectorAll('.proj-dots button').forEach((b,bi)=>{
         b.style.width = bi===i ? '24px':'6px';
         b.style.background = bi===i ? 'var(--signal)' : 'var(--muted-2)';
       });
+    }
+
+    function startAutoplay(){
+      if(p.images.length < 2) return;
+      autoplay = setInterval(()=> showImage((active+1) % p.images.length), 4000);
+    }
+    function restartAutoplay(){ clearInterval(autoplay); startAutoplay(); }
+
+    div.querySelectorAll('.proj-dots button').forEach(btn=>{
+      btn.addEventListener('click', ()=>{ showImage(+btn.dataset.idx); restartAutoplay(); });
     });
-  });
+
+    const mediaEl = div.querySelector('.proj-media');
+    mediaEl.addEventListener('mouseenter', ()=> clearInterval(autoplay));
+    mediaEl.addEventListener('mouseleave', startAutoplay);
+    startAutoplay();
+  }
   div.querySelector('.proj-expand').addEventListener('click', ()=> openModal(idx));
   projectsGrid.appendChild(div);
 });
